@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>慢慢谷物语 · 试玩版</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #f4ead8; overflow: hidden; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+  #game { position: fixed; top: 0; left: 0; bottom: 0; right: 340px; width: calc(100% - 340px); height: 100%; border: 0; display: block; }
+  body.compact #game, body.nopanel #game { right: 0; width: 100%; }
+  body.nopanel #mpanel { display: none; }
+  #mopen { position: fixed; left: 14px; bottom: 14px; display: none; border: 2px solid #e8d6b8; background: rgba(255,250,240,.92); color: #5a4535; border-radius: 14px; padding: 8px 14px; font-weight: 700; font-size: 15px; cursor: pointer; }
+  body.nopanel #mopen { display: block; }
+  #mpanel { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; overflow-y: auto; background: #fffaf0; border-left: 2px dashed #e8d6b8; padding: 14px; box-sizing: border-box; color: #5a4535; font-size: 13px; }
+  body.compact #mpanel { top: auto; left: auto; right: 12px; bottom: 12px; width: auto; padding: 6px; border: none; border-radius: 16px; background: rgba(255,250,240,.88); overflow: visible; }
+  body.compact #mpanel > *:not(.vid) { display: none; }
+  /* 正式游玩：识别稳定后什么都不显示，游戏全屏；按 D 才出调试面板 */
+  body.compact #mpanel { display: none; }
+  /* 开始前的站位：全屏毛毡小人 */
+  #mstage { display: none; position: fixed; inset: 0; z-index: 20; background: rgba(247,239,223,.96); align-items: center; justify-content: center; gap: 5vw; color: #5a4535; font-family: "PingFang SC","Microsoft YaHei",sans-serif; }
+  body.staging #mstage { display: flex; }
+  #mstage canvas { height: 78vh; aspect-ratio: 4/3; background: #fbf3e2; border-radius: 36px; border: 4px solid #e2cfae; outline: 3px dashed rgba(176,138,96,.5); outline-offset: -14px; }
+  #mstage .side { width: 30vw; }
+  #mstage h2 { font-size: 3.4vw; margin: 0 0 1.2vw; font-weight: 800; }
+  #mstage p { font-size: 1.9vw; line-height: 1.6; margin: 0 0 1.6vw; color: #7a644e; }
+  #mstage .bar { height: 1.2vw; background: #eadfca; border-radius: 1vw; overflow: hidden; } #mstage .bar div { height: 100%; width: 0; background: #9db577; border-radius: 1vw; transition: width .15s; }
+  #mstage small { display: block; margin-top: 2vw; font-size: 1.1vw; color: #a8957c; }
+  /* 玩的时候人走出画面：角落里一张小卡片 */
+  #mlost { display: none; position: fixed; right: 2vw; bottom: 2vw; z-index: 20; background: #fbf3e2; border: 3px solid #e2cfae; border-radius: 24px; padding: 12px 18px 12px 12px; align-items: center; gap: 12px; color: #5a4535; font: 700 1.5vw "PingFang SC","Microsoft YaHei",sans-serif; box-shadow: 0 6px 0 rgba(70,48,28,.14); }
+  body.lostcard #mlost { display: flex; }
+  #mrecnote { display: none; position: fixed; left: 50%; top: 4vh; transform: translateX(-50%); z-index: 30; background: #fbf3e2; border: 3px solid #e39a4c; border-radius: 24px; padding: 14px 28px; color: #5a4535; font: 800 2.2vw "PingFang SC","Microsoft YaHei",sans-serif; }
+  body.recnote #mrecnote { display: block; }
+  #mlost canvas { width: 8vw; aspect-ratio: 4/3; }
+  body.compact .vid { width: 208px; height: 156px; margin: 0; }
+  #mpanel .ttl { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .pill { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #eee3d0; margin-left: 6px; font-weight: 600; }
+  .pill.tracking { background: #cfe2b7; } .pill.lost, .pill.error { background: #f2c3b4; } .pill.calibrating, .pill.loading { background: #f7dfb3; }
+  #mpanel .row { display: flex; gap: 6px; margin: 6px 0; align-items: center; flex-wrap: wrap; }
+  #mpanel button { border: 2px solid #e8d6b8; background: #fff; border-radius: 10px; padding: 6px 10px; font-weight: 700; color: #5a4535; cursor: pointer; }
+  #mpanel button:disabled { opacity: .45; cursor: default; }
+  #mpanel .small { font-size: 12px; }
+  .vid { position: relative; width: 312px; height: 234px; background: #2b2420; border-radius: 12px; overflow: hidden; margin: 8px 0; }
+  .vid video, .vid canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .vid video { transform: scaleX(-1); opacity: .55; }
+  #mcalbar { position: absolute; left: 10px; right: 10px; bottom: 10px; height: 8px; background: rgba(255,255,255,.4); border-radius: 4px; display: none; }
+  #mcalbar div { height: 100%; width: 0; background: #9db577; border-radius: 4px; }
+  .msg { background: #f6eedf; border-radius: 10px; padding: 8px; margin: 6px 0; line-height: 1.5; }
+  .metrics { color: #9b7f62; margin: 4px 0 8px; }
+  table.acts { width: 100%; border-collapse: collapse; }
+  table.acts td { border-bottom: 1px solid #f0e4cf; padding: 5px 2px; vertical-align: middle; }
+  .how { font-size: 11px; color: #9b7f62; }
+  td.cnt { width: 44px; text-align: center; font-size: 22px; font-weight: 800; border-radius: 8px; }
+  td.cnt.hit { animation: hit .6s; } @keyframes hit { from { background: #cfe2b7; } to { background: transparent; } }
+  .fb { display: flex; align-items: center; gap: 6px; margin: 4px 0; } .fb span { width: 64px; font-size: 12px; }
+  .fb i { position: relative; flex: 1; height: 10px; background: #f0e4cf; border-radius: 5px; overflow: hidden; }
+  .fb b { position: absolute; left: 0; top: 0; bottom: 0; background: #d7c3a3; } .fb b.on { background: #9db577; }
+  .fb em { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #e39a4c; }
+  .log { font-family: ui-monospace, monospace; font-size: 12px; color: #7a644e; margin-top: 8px; min-height: 120px; }
+  .tip { margin-top: 8px; font-size: 12px; color: #9b7f62; line-height: 1.6; }
+
+  #mclose { float: right; font-size: 12px; padding: 3px 8px !important; }
+</style>
+</head>
+<body>
+<script>/* v169：?new=1 = 新玩家体验——清掉这台电脑上的进度、续玩、动作卡片记录，从开场重新来 */
+{ const u = new URL(location.href); if (u.searchParams.get('new') === '1') { try { for (const k of Object.keys(localStorage)) if (/^(manman|mm_)/.test(k)) localStorage.removeItem(k); } catch (e) {} u.searchParams.delete('new'); history.replaceState(null, '', u.pathname + (u.search || '')); } }</script>
+<iframe id="game" src="title.html" allow="autoplay"></iframe>
+<script>{ const q = new URLSearchParams(location.search).get('page'); if (q && /^[a-z0-9_]+$/.test(q)) document.getElementById('game').src = q + '.html'; }</script>
+<div id="mpanel"></div>
+<div id="mstage"><canvas id="mfelt" width="640" height="480"></canvas><div class="side"><h2 id="mstageT">找个位置站好</h2><p id="mstageS">离屏幕两三步远，让全身都进到画面里。</p><div class="bar"><div id="mstageB"></div></div><small>画面只在这台电脑上处理，不录制、不上传。按 D 打开调试面板。</small></div></div>
+<div id="mrecnote"></div>
+<div id="mlost"><canvas id="mfelt2" width="320" height="240"></canvas><span id="mlostT">小满找不到你啦，往中间站一点</span></div>
+<button id="mopen">📷 体感</button>
+<script src="common.js"></script><script src="demo.js"></script>
+<script>
+  // the shell keeps the camera alive while pages change inside the frame
+  window.VALLEY_SHELL = {
+    load(page) { const f = document.getElementById('game'); f.src = page + '.html'; f.onload = () => { try { f.contentWindow.focus(); } catch (e) {} }; },
+    togglePanel() { window.dispatchEvent(new Event('togglepanel')); },
+    applyTier() { VALLEY.reload(); window.dispatchEvent(new Event('tierchange')); },
+  };
+  document.getElementById('game').addEventListener('load', e => { try { e.target.contentWindow.focus(); } catch (x) {} });
+  // online preview: the browser blocks the camera there, so start with the panel folded away
+  if (!/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) document.body.classList.add('nopanel');
+  document.getElementById('mopen').onclick = () => document.body.classList.remove('nopanel');
+  // v150：点完面板上的按钮，焦点还给游戏；焦点停在外面时按的键，也转给游戏
+  const gameWin = () => { try { return document.getElementById('game').contentWindow; } catch (e) { return null; } };
+  document.getElementById('mpanel').addEventListener('click', () => setTimeout(() => { const w = gameWin(); if (w) w.focus(); }, 0));
+  for (const type of ['keydown', 'keyup']) addEventListener(type, e => { if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return; const w = gameWin(); if (!w) return;
+    try { w.dispatchEvent(new w.KeyboardEvent(type, { key: e.key, code: e.code, repeat: e.repeat, bubbles: true })); if (type === 'keydown') w.focus(); e.preventDefault(); } catch (x) {} });
+</script>
+<script type="module" src="motion/ui.js"></script>
+</body>
+</html>
